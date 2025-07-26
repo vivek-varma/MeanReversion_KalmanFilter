@@ -1,0 +1,8 @@
+dataset: "GLBX.MDP3"          # CME / CBOT futures venue :contentReference[oaicite:0]{index=0}
+schema:  "ohlcv-1m"           # pre-aggregated 1-minute bars
+symbols: ["ZN.FUT", "ZF.FUT"] # parent symbology = every expiry rolled :contentReference[oaicite:1]{index=1}
+start:   "2018-01-02T00:00"
+end:     "2025-07-25T23:59"
+adjust:  "ratio"              # back-adjust continuous series
+out_dir: "data/raw/databento"
+

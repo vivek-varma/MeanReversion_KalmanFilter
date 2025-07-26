@@ -1,0 +1,21 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up micromamba
+        uses: mamba-org/provision-with-micromamba@v15
+        with:
+          environment-file: environment.yml
+      - name: Lint
+        run: |
+          micromamba run -n futures-meanrev flake8 src/
+      - name: Test
+        run: |
+          micromamba run -n futures-meanrev pytest tests/

@@ -1,0 +1,17 @@
+name: backtest
+channels: [conda-forge]
+dependencies:
+  - python=3.11
+  - numpy
+  - pandas
+  - polars
+  - scipy
+  - pykalman
+  - ta-lib
+  - jupyterlab
+  - rich
+  - pytest
+  - python-dotenv
+  - databento
+  - pyyaml
+  - tqdm

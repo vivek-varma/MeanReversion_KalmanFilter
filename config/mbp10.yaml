@@ -1,0 +1,7 @@
+dataset:  "GLBX.MDP3"
+schema:   "mbp-10"             # 10-level market-by-price
+symbols:  ["ZN.FUT", "ZF.FUT"] # parent codes = all rolls
+start:    "2023-01-02T00:00"   # one full year
+end:      "2023-12-31T23:59"
+out_dir:  "data/raw/databento/mbp10"
+compression: "zstd"            # write *.dbn.zst on disk
