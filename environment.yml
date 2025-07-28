@@ -1,4 +1,4 @@
-name: backtest
+name: quant-new
 channels: [conda-forge]
 dependencies:
   - python=3.11
@@ -12,6 +12,9 @@ dependencies:
   - rich
   - pytest
   - python-dotenv
-  - databento
   - pyyaml
   - tqdm
+  - r-base
+  - r-tidyverse
+  - r-arrow
+  - r-irkernel

@@ -1,3 +1,6 @@
 # Ignore data and secrets by default
 /config/api_key.env
 /data/raw/
+venv/
+.R*
+oryx-*
