@@ -5,6 +5,10 @@ from indicators.ewstats import ew_z
 from backtest.engine import PairBacktester, Params
 from backtest.metrics import sharpe, drawdown, turnover
 import matplotlib.pyplot as plt
+from backtest.viz_mpl import save_equity_bars_png, save_equity_combined_png
+import pandas as pd
+import pathlib
+from datetime import datetime
 
 UTC  = timezone.utc
 CUT1 = datetime(2023, 1, 1, tzinfo=UTC)
@@ -51,6 +55,9 @@ def run_segment(seg, params):
           )
     out = bt.run()
     pnl = out["pnl"]
+    daily = pd.Series(np.diff(pnl), index=seg["dt"].to_pandas()[1:]).resample("D").sum()
+    print("Daily PnL  [min/mean/max]:",
+      f"${daily.min():,.0f} / ${daily.mean():,.0f} / ${daily.max():,.0f}")
     ret = np.diff(pnl)
     S   = sharpe(ret)
     mdd, _ = drawdown(pnl)
@@ -80,15 +87,29 @@ print(f"Sharpe  — train {S_train:.2f} | test {S_test:.2f} | valid {S_val:.2f}"
 print(f"MaxDD $ — train {mdd_train:,.0f} | test {mdd_test:,.0f} | valid {mdd_val:,.0f}")
 print(f"Trades  — train {trn_train} | test {trn_test} | valid {trn_val}")
 
-# ---------- Plot equity curves ----------------------------------------------
-plt.figure(figsize=(10,4))
-#plt.plot(train["dt"], pnl_train, label="train")
-plt.plot(test["dt"],  pnl_test,  label="test")
-plt.plot(valid["dt"], pnl_val,   label="valid")
-plt.title("Cumulative PnL ($)")
-plt.legend()
-plt.xlabel("Date")
-plt.ylabel("Cumulative PnL ($)")
-plt.grid()
-plt.tight_layout()
-plt.savefig("data/processed/pnl_curves.png", dpi=300)
+# ---- create run folder ----
+stamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+desc  = f"ZNZF_kalman_e{best['params'].entry_z}_x{best['params'].exit_z}"
+run_dir   = pathlib.Path("results") / f"{stamp}__{desc}"
+plots_dir = run_dir / "plots"
+plots_dir.mkdir(parents=True, exist_ok=True)
+
+plots_dir = pathlib.Path(run_dir) / "plots"
+plots_dir.mkdir(parents=True, exist_ok=True)
+
+# Combined equity line
+save_equity_combined_png(
+    train["dt"].to_pandas(), pnl_train,
+    test["dt"].to_pandas(),  pnl_test,
+    valid["dt"].to_pandas(), pnl_val,
+    plots_dir / "equity_combined.png",
+)
+
+# QC-style green/red bars + equity (daily)
+save_equity_bars_png(train["dt"].to_pandas(), pnl_train, plots_dir / "train_equity.png",
+                     freq="D", title="Train — Equity & Daily PnL")
+save_equity_bars_png(test["dt"].to_pandas(),  pnl_test,  plots_dir / "test_equity.png",
+                     freq="D", title="Test — Equity & Daily PnL")
+save_equity_bars_png(valid["dt"].to_pandas(), pnl_val,   plots_dir / "valid_equity.png",
+                     freq="D", title="Validation — Equity & Daily PnL")
+print("Saved Matplotlib PNGs to:", plots_dir)

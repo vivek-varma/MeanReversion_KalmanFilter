@@ -4,11 +4,12 @@ import numpy as np
 from dataclasses import dataclass
 
 # === Contract economics (points → $) =========================================
-POINT_VALUE_USD = 1000.0         # $ per full point for ZN/ZF
-TICK_ZN = 1/64                    # 0.5/32
-TICK_ZF = 1/128                   # 0.25/32
-TICKVAL_ZN = POINT_VALUE_USD * TICK_ZN   # $15.625
-TICKVAL_ZF = POINT_VALUE_USD * TICK_ZF   # $7.8125
+POINT_VALUE_USD = 1000.0         # keep if you still need it elsewhere
+TICK_ZN = 1/64                    # 0.015625 per tick
+TICK_ZF = 1/128                   # 0.0078125 per tick
+TICKVAL_ZN = 15.625               # $ per tick for ZN
+TICKVAL_ZF = 7.8125               # $ per tick for ZF
+MAX_POINT_JUMP = 1.0   
 
 @dataclass
 class Params:
@@ -55,43 +56,44 @@ class PairBacktester:
 
     def run(self):
         n = len(self.a)
-        pnl = np.zeros(n)
-        posA = np.zeros(n, dtype=int)  # contracts
+        pnl  = np.zeros(n)
+        posA = np.zeros(n, dtype=int)
         posB = np.zeros(n, dtype=int)
-        age  = 0
 
         in_pos = False
         qA = qB = 0
+        age = 0
 
         for i in range(1, n):
-            # 1) Book PnL with positions held on (i-1 -> i)
-            if in_pos:
-                pnl[i] = pnl[i-1] + qA*(self.a[i]-self.a[i-1])*POINT_VALUE_USD \
-                                   + qB*(self.b[i]-self.b[i-1])*POINT_VALUE_USD
+            # --- book PnL for (i-1 -> i) using the position we held during that bar
+            da = self.a[i] - self.a[i-1]
+            db = self.b[i] - self.b[i-1]
+
+            # guard against crazy spikes (e.g., bad ticks)
+            if in_pos and (abs(da) <= MAX_POINT_JUMP) and (abs(db) <= MAX_POINT_JUMP):
+                tick_a = da / TICK_ZN
+                tick_b = db / TICK_ZF
+                pnl[i] = pnl[i-1] + qA * tick_a * TICKVAL_ZN + qB * tick_b * TICKVAL_ZF
                 age += 1
             else:
                 pnl[i] = pnl[i-1]
 
             posA[i], posB[i] = qA, qB
 
-            # 2) Decide what to hold *next* bar using info at close of bar i
-            z = self.z[i]
+            # --- decide what to hold for the NEXT bar using z[i] (info at close of bar i)
+            z_now = self.z[i]
             if in_pos:
-                if np.isnan(z) or abs(z) < self.p.exit_z or abs(z) > self.p.stop_z or age >= self.p.time_stop_bars:
+                if (np.isnan(z_now) or abs(z_now) < self.p.exit_z
+                    or abs(z_now) > self.p.stop_z or age >= self.p.time_stop_bars):
                     in_pos = False
-                    pnl[i] -= (self.p.cost_per_exit)       # exit cost
+                    pnl[i] -= self.p.cost_per_exit
                     qA = qB = 0
                     age = 0
 
-            if not in_pos and not np.isnan(z) and abs(z) > self.p.entry_z:
-                # enter for next bar
-                sgn = -np.sign(z)
-                qA, qB = self._size(i, sgn)
+            if (not in_pos) and (not np.isnan(z_now)) and abs(z_now) > self.p.entry_z:
+                sgn = -int(np.sign(z_now))              # short spread when z>0, long when z<0
+                qA, qB = self._size(i, sgn)             # compute integer contract sizes
                 in_pos = True
-                pnl[i] -= (self.p.cost_per_entry)         # entry cost
+                pnl[i] -= self.p.cost_per_entry
 
-        return {
-            "pnl": pnl,
-            "posA": posA,
-            "posB": posB,
-        }
+        return {"pnl": pnl, "posA": posA, "posB": posB}
